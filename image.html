@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thêm watermark hàng loạt</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+ <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 20px; 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+    .container { 
+      max-width: 1000px; 
+      margin: auto; 
+      background: white; 
+      padding: 30px; 
+      border-radius: 16px; 
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+    h2 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 24px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 25px;
+      font-size: 14px;
+    }
+    .upload-section {
+      border: 3px dashed #ddd;
+      border-radius: 12px;
+      padding: 30px;
+      text-align: center;
+      background: #fafafa;
+      transition: all 0.3s;
+      cursor: pointer;
+      margin-bottom: 20px;
+    }
+    .upload-section:hover {
+      border-color: #667eea;
+      background: #f0f4ff;
+    }
+    .upload-section.active {
+      border-color: #667eea;
+      background: #f0f4ff;
+    }
+    input[type="file"] { 
+      display: none;
+    }
+    .upload-label {
+      display: block;
+      color: #667eea;
+      font-weight: 600;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .file-count {
+      margin-top: 15px;
+      padding: 10px;
+      background: #e8f5e9;
+      border-radius: 8px;
+      color: #2e7d32;
+      font-size: 14px;
+      display: none;
+    }
+    .form-section {
+      background: #f9f9f9;
+      padding: 20px;
+      border-radius: 12px;
+      margin: 20px 0;
+    }
+    .form-section h3 {
+      margin-bottom: 15px;
+      color: #333;
+      font-size: 18px;
+    }
+    .form-grid {
+      display: grid;
+      gap: 15px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    label {
+      font-weight: 600;
+      color: #333;
+      font-size: 14px;
+    }
+    input[type="text"], input[type="date"], textarea {
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border 0.3s;
+    }
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+      font-family: inherit;
+    }
+    .time-inputs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    .time-input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .time-input-group label {
+      font-size: 12px;
+      color: #666;
+    }
+    .time-input-group input {
+      padding: 8px;
+      text-align: center;
+    }
+    .preview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+    .preview-item {
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f5f5f5;
+    }
+    .preview-item img {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+    }
+    .preview-item .info {
+      padding: 10px;
+      font-size: 12px;
+      color: #666;
+    }
+    button { 
+      width: 100%;
+      padding: 14px 24px; 
+      border: none; 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white; 
+      border-radius: 10px; 
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 15px;
+      transition: all 0.3s;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+      margin-top: 20px;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: #667eea;
+      font-weight: 600;
+      display: none;
+    }
+    .loading.show {
+      display: block;
+    }
+    .settings-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h2>Thêm watermark hàng loạt (9 ảnh)</h2>
+    <p class="subtitle">Chọn tối đa 9 ảnh, nhập thông tin chung và thời gian riêng cho từng ảnh</p>
+    
+    <div class="upload-section" id="uploadSection" onclick="document.getElementById('imageInput').click()">
+      <label class="upload-label" for="imageInput">
+        Nhấn để chọn tối đa 9 ảnh
+      </label>
+      <input type="file" id="imageInput" accept="image/*" multiple />
+      <div class="file-count" id="fileCount"></div>
+    </div>
+
+    <div class="form-section">
+      <h3>Thông tin chung (giống nhau cho 9 ảnh)</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Ngày chụp:</label>
+          <input type="date" id="commonDate" required />
+        </div>
+        <div class="form-group">
+          <label>Địa chỉ:</label>
+          <textarea id="commonAddress" placeholder="408 Lê Duẩn, Phường Đa Tam, Thành phố Buôn Ma Thuột, Đắk Lắk" rows="3"></textarea>
+          <small style="color: #999; font-size: 12px;">Sẽ tự động ngắt dòng khi quá dài</small>
+        </div>
+        <div class="form-group">
+          <label>Độ dài mỗi dòng (số ký tự):</label>
+          <input type="number" id="maxCharsPerLine" value="15" min="10" max="50" />
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h3>Thời gian riêng cho từng ảnh</h3>
+      <div class="time-inputs" id="timeInputs">
+        <!-- Sẽ được tạo động -->
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h3>Tùy chỉnh hiển thị</h3>
+      <div class="settings-group">
+        <div class="form-group">
+          <label>Kích thước chữ:</label>
+          <input type="number" id="fontSize" value="28" min="20" max="100" />
+        </div>
+        <div class="form-group">
+          <label>Màu chữ:</label>
+          <input type="color" id="textColor" value="#ffffff" />
+        </div>
+      </div>
+    </div>
+
+    <div class="preview-grid" id="previewGrid"></div>
+
+    <button onclick="processAllImages()" id="processBtn" disabled>Tạo tất cả ảnh và tải xuống</button>
+
+    <div class="loading" id="loading">Đang xử lý...</div>
+  </div>
+
+  <script>
+    let selectedFiles = [];
+    const MAX_IMAGES = 9;
+
+    // Drag and drop
+    const uploadSection = document.getElementById('uploadSection');
+    uploadSection.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadSection.classList.add('active');
+    });
+    uploadSection.addEventListener('dragleave', () => {
+      uploadSection.classList.remove('active');
+    });
+    uploadSection.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadSection.classList.remove('active');
+      const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+      handleFiles(files);
+    });
+
+    document.getElementById('imageInput').addEventListener('change', function(e) {
+      const files = Array.from(e.target.files);
+      handleFiles(files);
+    });
+
+    function handleFiles(files) {
+      if (files.length > MAX_IMAGES) {
+        alert(`Chỉ được chọn tối đa ${MAX_IMAGES} ảnh!`);
+        files = files.slice(0, MAX_IMAGES);
+      }
+
+      selectedFiles = files;
+      
+      const fileCount = document.getElementById('fileCount');
+      fileCount.textContent = `Đã chọn ${files.length} ảnh`;
+      fileCount.style.display = 'block';
+
+      createTimeInputs(files.length);
+      createPreviews(files);
+      
+      document.getElementById('processBtn').disabled = false;
+    }
+
+    function createTimeInputs(count) {
+      const container = document.getElementById('timeInputs');
+      container.innerHTML = '';
+      
+      for (let i = 0; i < count; i++) {
+        const div = document.createElement('div');
+        div.className = 'time-input-group';
+        div.innerHTML = `
+          <label>Ảnh ${i + 1}</label>
+          <input type="time" id="time${i}" value="12:00" step="1" />
+        `;
+        container.appendChild(div);
+      }
+    }
+
+    function createPreviews(files) {
+      const container = document.getElementById('previewGrid');
+      container.innerHTML = '';
+      
+      files.forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const div = document.createElement('div');
+          div.className = 'preview-item';
+          div.innerHTML = `
+            <img src="${e.target.result}" alt="Ảnh ${index + 1}" />
+            <div class="info">Ảnh ${index + 1}: ${file.name}</div>
+          `;
+          container.appendChild(div);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function processAllImages() {
+      const commonDate = document.getElementById('commonDate').value;
+      const commonAddress = document.getElementById('commonAddress').value;
+      const fontSize = parseInt(document.getElementById('fontSize').value);
+      const textColor = document.getElementById('textColor').value;
+
+      if (!commonDate) {
+        alert('Vui lòng nhập ngày chụp!');
+        return;
+      }
+
+      const loading = document.getElementById('loading');
+      loading.classList.add('show');
+      document.getElementById('processBtn').disabled = true;
+
+      try {
+        const zip = new JSZip();
+        const processedImages = [];
+
+        for (let i = 0; i < selectedFiles.length; i++) {
+          const file = selectedFiles[i];
+          const timeInput = document.getElementById(`time${i}`);
+          const time = timeInput ? timeInput.value : '12:00:00';
+
+          const maxCharsPerLine = parseInt(document.getElementById('maxCharsPerLine').value) || 15;
+          const canvas = await processImage(file, commonDate, time, commonAddress, fontSize, textColor, maxCharsPerLine);
+          
+          // Chuyển canvas thành blob
+          const blob = await new Promise(resolve => {
+            canvas.toBlob(resolve, 'image/jpeg', 0.95);
+          });
+
+          // Giữ nguyên tên file gốc
+          const originalName = file.name;
+          const fileExt = originalName.substring(originalName.lastIndexOf('.'));
+          const fileNameWithoutExt = originalName.substring(0, originalName.lastIndexOf('.'));
+          const fileName = `${fileNameWithoutExt}${fileExt}`;
+          
+          zip.file(fileName, blob);
+        }
+
+        // Tạo và tải file zip
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const zipName = "photos_" + Date.now() + ".zip";
+        saveAs(zipBlob, zipName);
+
+        alert('Đã tải xuống thành công!');
+      } catch (error) {
+        alert('Lỗi khi xử lý: ' + error.message);
+        console.error(error);
+      } finally {
+        loading.classList.remove('show');
+        document.getElementById('processBtn').disabled = false;
+      }
+    }
+
+    function wrapText(text, maxChars) {
+      if (!text || text.trim().length === 0) return [];
+      
+      const words = text.split(' ');
+      const lines = [];
+      let currentLine = '';
+      
+      for (let word of words) {
+        const testLine = currentLine ? currentLine + ' ' + word : word;
+        
+        if (testLine.length <= maxChars) {
+          currentLine = testLine;
+        } else {
+          if (currentLine) {
+            lines.push(currentLine);
+          }
+          currentLine = word;
+        }
+      }
+      
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+      
+      return lines;
+    }
+
+    function processImage(file, date, time, address, fontSize, textColor, maxCharsPerLine) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const img = new Image();
+          img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            
+            // Vẽ text giống ảnh mẫu
+            ctx.font = `${fontSize}px Arial`;
+            ctx.fillStyle = textColor;
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+            ctx.shadowBlur = 3;
+            ctx.shadowOffsetX = 1;
+            ctx.shadowOffsetY = 1;
+            ctx.textAlign = 'right';
+            
+            // Format date theo kiểu dd/mm/yyyy
+            const dateObj = new Date(date);
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const year = dateObj.getFullYear();
+            const dateStr = `${day}/${month}/${year}`;
+            
+            // Tạo text lines theo định dạng ảnh mẫu
+            const lines = [
+              time,           // 07:48:47
+              dateStr         // 11/5/2023
+            ];
+            
+            // Thêm "Địa chỉ:" nếu có địa chỉ
+            if (address && address.trim()) {
+              lines.push('Địa chỉ:');
+              
+              // Tự động ngắt dòng địa chỉ
+              const wrappedLines = wrapText(address, maxCharsPerLine);
+              lines.push(...wrappedLines);
+            }
+            
+            // Vẽ từng dòng
+            const lineHeight = fontSize + 3; // Khoảng cách dòng rất nhỏ như trong ảnh
+            const padding = 20;
+            const startX = canvas.width - padding;
+            const startY = padding + fontSize;
+            
+            for (let i = 0; i < lines.length; i++) {
+              ctx.fillText(lines[i], startX, startY + i * lineHeight);
+            }
+            
+            resolve(canvas);
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // Set ngày mặc định là hôm nay
+    document.getElementById('commonDate').valueAsDate = new Date();
+  </script>
+</body>
+</html>
